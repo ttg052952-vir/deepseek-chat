@@ -46,7 +46,6 @@
             overflow: hidden;
         }
 
-        /* 侧边栏 */
         .sidebar {
             position: fixed;
             left: -280px;
@@ -133,7 +132,7 @@
         .delete-item {
             background: none;
             border: none;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             color: var(--text-secondary);
             opacity: 0;
@@ -144,7 +143,6 @@
             opacity: 1;
         }
 
-        /* 主内容区 */
         .main-content {
             height: 100vh;
             display: flex;
@@ -207,7 +205,6 @@
             color: var(--text-primary);
         }
 
-        /* 聊天区域 */
         .chat-area {
             flex: 1;
             overflow-y: auto;
@@ -267,7 +264,6 @@
             border-bottom-left-radius: 4px;
         }
 
-        /* 图片附件样式 */
         .file-attachment {
             margin-bottom: 8px;
             padding: 8px 12px;
@@ -277,18 +273,12 @@
             align-items: center;
             gap: 8px;
             font-size: 13px;
-        }
-
-        .file-attachment img {
-            max-width: 150px;
-            max-height: 150px;
-            border-radius: 8px;
-            margin-top: 8px;
+            flex-wrap: wrap;
         }
 
         .preview-image {
-            max-width: 200px;
-            max-height: 200px;
+            max-width: 150px;
+            max-height: 150px;
             border-radius: 12px;
             margin-top: 8px;
             cursor: pointer;
@@ -340,7 +330,6 @@
             border-radius: 4px;
         }
 
-        /* 输入区域 */
         .input-area {
             position: fixed;
             bottom: 0;
@@ -528,17 +517,14 @@
             display: block;
         }
 
-        /* 隐藏的文件输入 */
         #fileInput {
             display: none;
         }
     </style>
 </head>
 <body>
-    <!-- 隐藏的文件上传 -->
     <input type="file" id="fileInput" accept="image/*,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple>
 
-    <!-- 侧边栏 -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <button class="new-chat-btn" onclick="createNewChat()">➕ 新建对话</button>
@@ -552,7 +538,6 @@
     </div>
     <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-    <!-- 主内容 -->
     <div class="main-content">
         <div class="navbar">
             <button class="menu-btn" onclick="toggleSidebar()">☰</button>
@@ -580,6 +565,7 @@
                 <div class="welcome-icon">🤖</div>
                 <h2>你好！我是 DeepSeek</h2>
                 <p>支持上传图片、PDF、Word、Excel、PPT、TXT文件<br>AI可以读取文件中的文字内容</p>
+                <p style="margin-top: 10px;">💡 点击左上角菜单新建对话 | 悬停消息可编辑/删除</p>
             </div>
         </div>
     </div>
@@ -598,12 +584,12 @@
     </div>
 
     <script>
-        // 数据结构
+        // 数据存储
         let groups = JSON.parse(localStorage.getItem('deepseek_groups') || '[{"id":"default","name":"对话历史","chats":[]}]');
         let currentChatId = localStorage.getItem('currentChatId');
         let currentChatMessages = [];
         let conversationHistory = [];
-        let pendingFiles = []; // 待上传的文件
+        let pendingFiles = [];
 
         // 保存数据
         function saveData() {
@@ -621,6 +607,19 @@
             }
         }
 
+        // 修改对话标题
+        function editChatTitle(chatId) {
+            const chat = groups[0].chats.find(c => c.id === chatId);
+            if (!chat) return;
+            
+            const newTitle = prompt('请输入新的对话标题:', chat.name);
+            if (newTitle && newTitle.trim()) {
+                chat.name = newTitle.trim();
+                saveData();
+                renderSidebar();
+            }
+        }
+
         // 渲染侧边栏
         function renderSidebar() {
             const chatsList = document.getElementById('chatsList');
@@ -630,8 +629,11 @@
             
             chatsList.innerHTML = chats.map(chat => `
                 <div class="chat-item ${chat.id === currentChatId ? 'active' : ''}" onclick="switchToChat('${chat.id}')">
-                    <span class="chat-name">💬 ${escapeHtml(chat.name)}</span>
-                    <button class="delete-item" onclick="event.stopPropagation(); deleteChat('${chat.id}')">🗑️</button>
+                    <span class="chat-name" title="双击修改标题">💬 ${escapeHtml(chat.name)}</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="delete-item" onclick="event.stopPropagation(); editChatTitle('${chat.id}')" style="opacity:0.7;" title="重命名">✏️</button>
+                        <button class="delete-item" onclick="event.stopPropagation(); deleteChat('${chat.id}')" title="删除">🗑️</button>
+                    </div>
                 </div>
             `).join('');
             
@@ -642,7 +644,7 @@
 
         // 创建新对话
         function createNewChat() {
-            const chatName = `对话 ${new Date().toLocaleString()}`;
+            const chatName = `新对话 ${new Date().toLocaleString()}`;
             const newChat = {
                 id: Date.now().toString(),
                 name: chatName,
@@ -678,20 +680,22 @@
 
         // 删除对话
         function deleteChat(chatId) {
-            const index = groups[0].chats.findIndex(c => c.id === chatId);
-            if (index !== -1) {
-                groups[0].chats.splice(index, 1);
+            if (confirm('确定要删除这个对话吗？')) {
+                const index = groups[0].chats.findIndex(c => c.id === chatId);
+                if (index !== -1) {
+                    groups[0].chats.splice(index, 1);
+                }
+                
+                if (currentChatId === chatId) {
+                    currentChatId = null;
+                    currentChatMessages = [];
+                    conversationHistory = [];
+                    renderChatArea();
+                }
+                
+                saveData();
+                renderSidebar();
             }
-            
-            if (currentChatId === chatId) {
-                currentChatId = null;
-                currentChatMessages = [];
-                conversationHistory = [];
-                renderChatArea();
-            }
-            
-            saveData();
-            renderSidebar();
         }
 
         // 渲染聊天区域
@@ -699,7 +703,12 @@
             const chatArea = document.getElementById('chatArea');
             
             if (!currentChatId || currentChatMessages.length === 0) {
-                chatArea.innerHTML = `<div class="welcome" id="welcomeScreen"><div class="welcome-icon">🤖</div><h2>你好！我是 DeepSeek</h2><p>支持上传图片、PDF、Word、Excel、PPT、TXT文件<br>AI可以读取文件中的文字内容</p></div>`;
+                chatArea.innerHTML = `<div class="welcome" id="welcomeScreen">
+                    <div class="welcome-icon">🤖</div>
+                    <h2>你好！我是 DeepSeek</h2>
+                    <p>支持上传图片、PDF、Word、Excel、PPT、TXT文件<br>AI可以读取文件中的文字内容</p>
+                    <p style="margin-top: 10px;">💡 点击左上角菜单新建对话 | 悬停消息可编辑/删除</p>
+                </div>`;
                 return;
             }
             
@@ -721,7 +730,7 @@
                     const reader = new FileReader();
                     reader.onload = (e) => resolve({ type: 'text', data: e.target.result, name: file.name });
                     reader.onerror = reject;
-                    reader.readAsText(file);
+                    reader.readAsText(file, 'UTF-8');
                 }
             });
         }
@@ -737,16 +746,21 @@
             const previewDiv = document.getElementById('filePreview');
             
             for (const file of files) {
-                const fileData = await readFileContent(file);
-                pendingFiles.push(fileData);
-                
-                const previewItem = document.createElement('div');
-                previewItem.className = 'file-preview-item';
-                previewItem.innerHTML = `
-                    ${fileData.type === 'image' ? `<img src="${fileData.data}" alt="${fileData.name}">` : `<div style="width:60px;height:60px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">📄</div>`}
-                    <div class="remove-file" onclick="removeFile('${fileData.name}')">✕</div>
-                `;
-                previewDiv.appendChild(previewItem);
+                try {
+                    const fileData = await readFileContent(file);
+                    pendingFiles.push(fileData);
+                    
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'file-preview-item';
+                    previewItem.setAttribute('data-name', fileData.name);
+                    previewItem.innerHTML = `
+                        ${fileData.type === 'image' ? `<img src="${fileData.data}" alt="${fileData.name}">` : `<div style="width:60px;height:60px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">📄</div>`}
+                        <div class="remove-file" onclick="removeFile('${escapeHtml(fileData.name)}')">✕</div>
+                    `;
+                    previewDiv.appendChild(previewItem);
+                } catch (err) {
+                    console.error('读取文件失败:', err);
+                }
             }
             e.target.value = '';
         });
@@ -754,18 +768,16 @@
         // 移除待上传文件
         function removeFile(fileName) {
             pendingFiles = pendingFiles.filter(f => f.name !== fileName);
-            document.getElementById('filePreview').innerHTML = '';
-            pendingFiles.forEach(file => {
-                const previewItem = document.createElement('div');
-                previewItem.className = 'file-preview-item';
-                previewItem.innerHTML = `
-                    ${file.type === 'image' ? `<img src="${file.data}" alt="${file.name}">` : `<div style="width:60px;height:60px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">📄</div>`}
-                    <div class="remove-file" onclick="removeFile('${file.name}')">✕</div>
-                `;
-                document.getElementById('filePreview').appendChild(previewItem);
-            });
+            const previewDiv = document.getElementById('filePreview');
+            const items = previewDiv.querySelectorAll('.file-preview-item');
+            for (const item of items) {
+                if (item.getAttribute('data-name') === fileName) {
+                    item.remove();
+                }
+            }
         }
 
+        // 添加消息到DOM
         function addMessageToDOM(role, content, messageId = null, files = null) {
             const chatArea = document.getElementById('chatArea');
             const id = messageId || Date.now() + '_' + Math.random();
@@ -780,9 +792,9 @@
                 filesHtml = '<div class="file-attachment">';
                 for (const file of files) {
                     if (file.type === 'image') {
-                        filesHtml += `<img src="${file.data}" class="preview-image" onclick="window.open(this.src)"><br>`;
+                        filesHtml += `<div><img src="${file.data}" class="preview-image" onclick="window.open(this.src)"><br><small>${escapeHtml(file.name)}</small></div>`;
                     } else {
-                        filesHtml += `📎 ${file.name}<br>`;
+                        filesHtml += `<div>📎 ${escapeHtml(file.name)}</div>`;
                     }
                 }
                 filesHtml += '</div>';
@@ -794,9 +806,9 @@
                 <div class="avatar">${role === 'user' ? '👤' : '🤖'}</div>
                 <div class="message-content">${filesHtml}${contentHtml}</div>
                 <div class="message-actions">
-                    ${role === 'user' ? `<button class="action-btn" onclick="editMessage('${id}')">✏️</button>` : ''}
-                    <button class="action-btn" onclick="deleteMessageById('${id}')">🗑️</button>
-                    ${role === 'assistant' ? `<button class="action-btn" onclick="regenerateLastMessage()">🔄</button>` : ''}
+                    ${role === 'user' ? `<button class="action-btn" onclick="editMessage('${id}')" title="编辑">✏️</button>` : ''}
+                    <button class="action-btn" onclick="deleteMessageById('${id}')" title="删除">🗑️</button>
+                    ${role === 'assistant' ? `<button class="action-btn" onclick="regenerateLastMessage()" title="重新生成">🔄</button>` : ''}
                 </div>
             `;
             
@@ -808,11 +820,13 @@
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copy-btn';
                 copyBtn.textContent = '📋';
+                copyBtn.title = '复制';
                 copyBtn.onclick = () => copyToClipboard(content);
                 messageDiv.querySelector('.message-content').appendChild(copyBtn);
             }
         }
 
+        // 添加消息
         function addMessage(role, content, files = null) {
             const id = Date.now() + '_' + Math.random();
             addMessageToDOM(role, content, id, files);
@@ -825,6 +839,7 @@
             saveData();
         }
 
+        // 删除消息
         function deleteMessageById(messageId) {
             const index = currentChatMessages.findIndex(m => m.id === messageId);
             if (index !== -1) {
@@ -837,6 +852,7 @@
             }
         }
 
+        // 编辑消息
         function editMessage(messageId) {
             const msg = currentChatMessages.find(m => m.id === messageId);
             if (!msg || msg.role !== 'user') return;
@@ -854,6 +870,7 @@
             }
         }
 
+        // 重新生成回复
         async function regenerateLastMessage() {
             if (conversationHistory.length < 2) return;
             conversationHistory.pop();
@@ -862,6 +879,7 @@
             await getAIResponse();
         }
 
+        // 获取AI回复
         async function getAIResponse() {
             const apiKey = localStorage.getItem('deepseek_api_key');
             if (!apiKey) {
@@ -887,7 +905,10 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error('请求失败');
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || '请求失败');
+                }
                 
                 const data = await response.json();
                 const reply = data.choices[0].message.content;
@@ -902,6 +923,7 @@
             }
         }
 
+        // 发送消息
         async function sendMessage() {
             const input = document.getElementById('userInput');
             const message = input.value.trim();
@@ -922,12 +944,12 @@
             // 构建消息内容（包含文件信息）
             let fullMessage = message;
             if (pendingFiles.length > 0) {
-                fullMessage = message || "请分析以下文件：";
+                if (!fullMessage) fullMessage = "请分析以下文件：";
                 for (const file of pendingFiles) {
                     if (file.type === 'image') {
                         fullMessage += `\n[图片: ${file.name}]`;
                     } else {
-                        fullMessage += `\n[文件: ${file.name}]\n内容：${file.data.substring(0, 2000)}${file.data.length > 2000 ? '...' : ''}`;
+                        fullMessage += `\n[文件: ${file.name}]\n内容：${file.data.substring(0, 2000)}${file.data.length > 2000 ? '...(已截断)' : ''}`;
                     }
                 }
             }
@@ -942,6 +964,7 @@
             await getAIResponse();
         }
 
+        // 显示打字指示器
         function showTypingIndicator() {
             const chatArea = document.getElementById('chatArea');
             const indicator = document.createElement('div');
@@ -952,23 +975,27 @@
             chatArea.scrollTop = chatArea.scrollHeight;
         }
 
+        // 隐藏打字指示器
         function hideTypingIndicator() {
             const indicator = document.getElementById('typingIndicator');
             if (indicator) indicator.remove();
         }
 
-        // UI 辅助函数
+        // UI辅助函数
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('overlay').classList.toggle('show');
         }
+        
         function closeSidebar() {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('overlay').classList.remove('show');
         }
+        
         function toggleSettings() {
             document.getElementById('settingsPanel').classList.toggle('show');
         }
+        
         function toggleTheme() {
             const isDark = document.body.getAttribute('data-theme') === 'dark';
             if (isDark) {
@@ -979,6 +1006,7 @@
                 localStorage.setItem('deepseek_theme', 'dark');
             }
         }
+        
         function saveSettings() {
             const apiKey = document.getElementById('apiKey').value.trim();
             const model = document.getElementById('modelSelect').value;
@@ -987,6 +1015,7 @@
             alert('设置已保存');
             toggleSettings();
         }
+        
         function loadSettings() {
             const savedKey = localStorage.getItem('deepseek_api_key');
             const savedModel = localStorage.getItem('deepseek_model');
@@ -995,20 +1024,25 @@
             if (savedModel) document.getElementById('modelSelect').value = savedModel;
             if (savedTheme === 'dark') document.body.setAttribute('data-theme', 'dark');
         }
+        
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
+        
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text);
-            alert('已复制');
+            alert('已复制到剪贴板');
         }
+        
         function autoResizeTextarea() {
             const textarea = document.getElementById('userInput');
             textarea.style.height = 'auto';
             textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
         }
+        
         function handleEnter(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
